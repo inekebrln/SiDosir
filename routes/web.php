@@ -13,9 +13,11 @@ Route::inertia('/', 'welcome', [
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', \App\Http\Controllers\DashboardController::class)->name('dashboard');
 
-    // ── Peminjaman (Customer Services) ───────────────
+    // ── Peminjaman (Customer Services & Admin) ────────
     Route::get('peminjaman', [PeminjamanController::class, 'index'])->name('peminjaman.index');
+    Route::get('peminjaman/poll', [PeminjamanController::class, 'poll'])->name('peminjaman.poll');
     Route::post('peminjaman', [PeminjamanController::class, 'store'])->name('peminjaman.store');
+    Route::put('peminjaman/{peminjaman}', [PeminjamanController::class, 'update'])->name('peminjaman.update');
 
     // ── Admin Routes ──────────────────────────────────
     Route::middleware(EnsureAdmin::class)->prefix('admin')->name('admin.')->group(function () {
@@ -32,6 +34,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('users/{user}', [Admin\UserController::class, 'update'])->name('users.update');
         Route::delete('users/{user}', [Admin\UserController::class, 'destroy'])->name('users.destroy');
         Route::post('users/{user}/toggle-status', [Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
+
+        // Laporan & Analitik
+        Route::get('laporan', [Admin\LaporanController::class, 'index'])->name('laporan.index');
     });
 });
 

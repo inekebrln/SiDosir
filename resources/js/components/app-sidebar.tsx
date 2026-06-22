@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    LayoutGrid, ClipboardList, Users, Camera, BarChart3,
+    LayoutGrid, ClipboardList, Users, Camera, BarChart3, TrendingUp,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGrouped } from '@/components/nav-grouped';
@@ -36,9 +36,16 @@ const adminNavGroups: NavGroup[] = [
         ],
     },
     {
-        label: 'Monitoring',
+        label: 'Peminjaman Dosir',
         items: [
-            { title: 'Peminjaman',   href: '/admin/peminjaman',   icon: BarChart3 },
+            { title: 'Catat Peminjaman', href: '/peminjaman',        icon: Camera },
+            { title: 'Monitoring',       href: '/admin/peminjaman',  icon: BarChart3 },
+        ],
+    },
+    {
+        label: 'Analitik',
+        items: [
+            { title: 'Laporan & Analitik', href: '/admin/laporan',  icon: TrendingUp },
         ],
     },
     {

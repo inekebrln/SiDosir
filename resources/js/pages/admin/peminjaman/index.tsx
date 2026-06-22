@@ -201,6 +201,53 @@ function RejectDialog({ item, open, onClose }: { item: PeminjamanItem | null; op
     );
 }
 
+// ─── Dialog Pengembalian (Confirm Return Modal) ───────────────────────────
+function ReturnDialog({ item, open, onClose }: { item: PeminjamanItem | null; open: boolean; onClose: () => void }) {
+    const [processing, setProcessing] = useState(false);
+
+    if (!item) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setProcessing(true);
+        router.post(`/admin/peminjaman/${item.id}/kembalikan`, {}, {
+            onSuccess: () => {
+                setProcessing(false);
+                onClose();
+            },
+            onError: () => {
+                setProcessing(false);
+            }
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
+            <DialogContent className="max-w-md">
+                <form onSubmit={handleSubmit}>
+                    <DialogHeader>
+                        <DialogTitle className="text-base">Konfirmasi Pengembalian Dosir</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-2">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            Apakah Anda yakin dosir dengan nomor <strong>{item.no_dosir}</strong> atas nama <strong>{item.nama_peminjam}</strong> telah dikembalikan?
+                        </p>
+                        <p className="text-xs text-muted-foreground bg-muted p-3 rounded-lg border border-border">
+                            Tindakan ini akan memperbarui status peminjaman menjadi <strong>DIKEMBALIKAN</strong> dan mencatat tanggal pengembalian hari ini.
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button type="button" variant="outline" onClick={onClose} disabled={processing}>Batal</Button>
+                        <Button type="submit" disabled={processing} className="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer">
+                            {processing ? 'Memproses...' : 'Ya, Sudah Dikembalikan'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────
 export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, filter }: Props) {
     const [q, setQ] = useState(keyword);
@@ -209,6 +256,7 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
     const [photoItem, setPhotoItem] = useState<PeminjamanItem | null>(null);
     const [accItem, setAccItem] = useState<PeminjamanItem | null>(null);
     const [rejectItem, setRejectItem] = useState<PeminjamanItem | null>(null);
+    const [returnItem, setReturnItem] = useState<PeminjamanItem | null>(null);
 
     const applyFilters = (newQ?: string, newStatus?: string) => {
         const params: Record<string, string> = {};
@@ -224,11 +272,6 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
         applyFilters();
     };
 
-    const handleKembalikan = (item: PeminjamanItem) => {
-        if (confirm(`Konfirmasi pengembalian dosir "${item.no_dosir}" dari ${item.nama_peminjam}?`)) {
-            router.post(`/admin/peminjaman/${item.id}/kembalikan`);
-        }
-    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -397,7 +440,7 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                                                             </>
                                                         )}
                                                         {item.status === 'dipinjam' && (
-                                                            <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleKembalikan(item)}>
+                                                            <Button size="sm" variant="outline" className="text-xs h-7 cursor-pointer" onClick={() => setReturnItem(item)}>
                                                                 <RotateCcw className="h-3 w-3 mr-1" /> Kembalikan
                                                             </Button>
                                                         )}
@@ -436,6 +479,7 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
             {photoItem && <PhotoDialog item={photoItem} open={true} onClose={() => setPhotoItem(null)} />}
             <AccDialog item={accItem} open={!!accItem} onClose={() => setAccItem(null)} />
             <RejectDialog item={rejectItem} open={!!rejectItem} onClose={() => setRejectItem(null)} />
+            <ReturnDialog item={returnItem} open={!!returnItem} onClose={() => setReturnItem(null)} />
         </>
     );
 }

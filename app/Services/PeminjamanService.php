@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Peminjaman;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class PeminjamanService
@@ -92,5 +93,64 @@ class PeminjamanService
             'dikembalikan'  => Peminjaman::byStatus('dikembalikan')->count(),
             'ditolak'       => Peminjaman::byStatus('ditolak')->count(),
         ];
+    }
+
+    /**
+     * Statistik ringkasan: hari ini, minggu ini, bulan ini.
+     */
+    public function statistikRingkasan(): array
+    {
+        return [
+            'hari_ini'   => Peminjaman::whereDate('created_at', today())->count(),
+            'minggu_ini' => Peminjaman::whereBetween('created_at', [
+                now()->startOfWeek(),
+                now()->endOfWeek(),
+            ])->count(),
+            'bulan_ini'  => Peminjaman::whereYear('created_at', now()->year)
+                ->whereMonth('created_at', now()->month)
+                ->count(),
+            'total'      => Peminjaman::count(),
+        ];
+    }
+
+    /**
+     * Statistik peminjaman per bulan dalam satu tahun (untuk grafik batang).
+     */
+    public function statistikPerBulan(int $year): array
+    {
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[] = [
+                'bulan'        => $m,
+                'label'        => Carbon::create($year, $m, 1)->isoFormat('MMM'),
+                'total'        => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->count(),
+                'menunggu'     => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('menunggu')->count(),
+                'dipinjam'     => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('dipinjam')->count(),
+                'dikembalikan' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('dikembalikan')->count(),
+                'ditolak'      => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('ditolak')->count(),
+            ];
+        }
+        return $months;
+    }
+
+    /**
+     * Ranking CS berdasarkan jumlah peminjaman yang dicatat.
+     */
+    public function topCS(int $limit = 5): array
+    {
+        return User::withCount('peminjaman')
+            ->where('role', 'customer_services')
+            ->orderByDesc('peminjaman_count')
+            ->limit($limit)
+            ->get()
+            ->map(fn($u) => [
+                'id'               => $u->id,
+                'name'             => $u->name,
+                'no_karyawan'      => $u->no_karyawan,
+                'peminjaman_count' => $u->peminjaman_count,
+                'dipinjam'         => $u->peminjaman()->byStatus('dipinjam')->count(),
+                'dikembalikan'     => $u->peminjaman()->byStatus('dikembalikan')->count(),
+            ])
+            ->toArray();
     }
 }
