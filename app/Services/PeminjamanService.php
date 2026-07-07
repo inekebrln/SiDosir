@@ -15,14 +15,14 @@ class PeminjamanService
     public function catat(User $user, array $data, ?string $fotoPath = null): Peminjaman
     {
         return Peminjaman::create([
-            'user_id'        => $user->id,
-            'nama_peminjam'  => $data['nama_peminjam'],
-            'notas_nik'      => $data['notas_nik'],
-            'nama_dosir'     => $data['nama_dosir'],
-            'no_dosir'       => $data['no_dosir'],
-            'foto_bukti'     => $fotoPath,
-            'status'         => 'menunggu',
-            'catatan'        => $data['catatan'] ?? null,
+            'user_id' => $user->id,
+            'nama_peminjam' => $data['nama_peminjam'],
+            'notas_nik' => $data['notas_nik'],
+            'nama_dosir' => $data['nama_dosir'],
+            'no_dosir' => $data['no_dosir'],
+            'foto_bukti' => $fotoPath,
+            'status' => 'menunggu',
+            'catatan' => $data['catatan'] ?? null,
         ]);
     }
 
@@ -32,10 +32,10 @@ class PeminjamanService
     public function setujui(Peminjaman $peminjaman, array $data): Peminjaman
     {
         $peminjaman->update([
-            'status'        => 'dipinjam',
-            'lokasi_rak'    => $data['lokasi_rak'],
+            'status' => 'dipinjam',
+            'lokasi_rak' => $data['lokasi_rak'],
             'catatan_admin' => $data['catatan_admin'] ?? null,
-            'tgl_pinjam'    => now()->toDateString(),
+            'tgl_pinjam' => now()->toDateString(),
         ]);
 
         return $peminjaman->fresh();
@@ -47,7 +47,7 @@ class PeminjamanService
     public function tolak(Peminjaman $peminjaman, string $catatanAdmin): Peminjaman
     {
         $peminjaman->update([
-            'status'        => 'ditolak',
+            'status' => 'ditolak',
             'catatan_admin' => $catatanAdmin,
         ]);
 
@@ -60,7 +60,7 @@ class PeminjamanService
     public function kembalikan(Peminjaman $peminjaman): Peminjaman
     {
         $peminjaman->update([
-            'status'      => 'dikembalikan',
+            'status' => 'dikembalikan',
             'tgl_kembali' => now()->toDateString(),
         ]);
 
@@ -87,11 +87,11 @@ class PeminjamanService
     public function statistik(): array
     {
         return [
-            'total'         => Peminjaman::count(),
-            'menunggu'      => Peminjaman::byStatus('menunggu')->count(),
-            'dipinjam'      => Peminjaman::byStatus('dipinjam')->count(),
-            'dikembalikan'  => Peminjaman::byStatus('dikembalikan')->count(),
-            'ditolak'       => Peminjaman::byStatus('ditolak')->count(),
+            'total' => Peminjaman::count(),
+            'menunggu' => Peminjaman::byStatus('menunggu')->count(),
+            'dipinjam' => Peminjaman::byStatus('dipinjam')->count(),
+            'dikembalikan' => Peminjaman::byStatus('dikembalikan')->count(),
+            'ditolak' => Peminjaman::byStatus('ditolak')->count(),
         ];
     }
 
@@ -101,15 +101,15 @@ class PeminjamanService
     public function statistikRingkasan(): array
     {
         return [
-            'hari_ini'   => Peminjaman::whereDate('created_at', today())->count(),
+            'hari_ini' => Peminjaman::whereDate('created_at', today())->count(),
             'minggu_ini' => Peminjaman::whereBetween('created_at', [
                 now()->startOfWeek(),
                 now()->endOfWeek(),
             ])->count(),
-            'bulan_ini'  => Peminjaman::whereYear('created_at', now()->year)
+            'bulan_ini' => Peminjaman::whereYear('created_at', now()->year)
                 ->whereMonth('created_at', now()->month)
                 ->count(),
-            'total'      => Peminjaman::count(),
+            'total' => Peminjaman::count(),
         ];
     }
 
@@ -121,13 +121,13 @@ class PeminjamanService
         $months = [];
         for ($m = 1; $m <= 12; $m++) {
             $months[] = [
-                'bulan'        => $m,
-                'label'        => Carbon::create($year, $m, 1)->isoFormat('MMM'),
-                'total'        => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->count(),
-                'menunggu'     => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('menunggu')->count(),
-                'dipinjam'     => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('dipinjam')->count(),
+                'bulan' => $m,
+                'label' => Carbon::create($year, $m, 1)->isoFormat('MMM'),
+                'total' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->count(),
+                'menunggu' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('menunggu')->count(),
+                'dipinjam' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('dipinjam')->count(),
                 'dikembalikan' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('dikembalikan')->count(),
-                'ditolak'      => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('ditolak')->count(),
+                'ditolak' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('ditolak')->count(),
             ];
         }
         return $months;
@@ -144,12 +144,12 @@ class PeminjamanService
             ->limit($limit)
             ->get()
             ->map(fn($u) => [
-                'id'               => $u->id,
-                'name'             => $u->name,
-                'no_karyawan'      => $u->no_karyawan,
+                'id' => $u->id,
+                'name' => $u->name,
+                'no_karyawan' => $u->no_karyawan,
                 'peminjaman_count' => $u->peminjaman_count,
-                'dipinjam'         => $u->peminjaman()->byStatus('dipinjam')->count(),
-                'dikembalikan'     => $u->peminjaman()->byStatus('dikembalikan')->count(),
+                'dipinjam' => $u->peminjaman()->byStatus('dipinjam')->count(),
+                'dikembalikan' => $u->peminjaman()->byStatus('dikembalikan')->count(),
             ])
             ->toArray();
     }

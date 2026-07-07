@@ -21,7 +21,8 @@ class PeminjamanController extends Controller
     {
         return Inertia::render('admin/peminjaman/index', [
             'peminjaman' => $this->peminjamanService->daftar(
-                $request->only('q', 'status')
+                $request->only('q', 'status'),
+                perPage: 10
             ),
             'statistik'  => $this->peminjamanService->statistik(),
             'keyword'    => $request->get('q', ''),

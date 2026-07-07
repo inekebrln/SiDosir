@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    LayoutGrid, ClipboardList, Users, Camera, BarChart3, TrendingUp,
+    LayoutGrid, ClipboardList, Users, Camera, BarChart3, TrendingUp,Activity
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGrouped } from '@/components/nav-grouped';
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import type { NavGroup, User } from '@/types';
 
-// ── Customer Services Navigation ────────────────────────────
+
 const csNavGroups: NavGroup[] = [
     {
         label: 'Menu Utama',
@@ -27,7 +27,7 @@ const csNavGroups: NavGroup[] = [
     },
 ];
 
-// ── Admin Navigation ────────────────────────────────────────
+
 const adminNavGroups: NavGroup[] = [
     {
         label: 'Menu Utama',
@@ -43,11 +43,13 @@ const adminNavGroups: NavGroup[] = [
         ],
     },
     {
-        label: 'Analitik',
+        label: 'Analitcs & Logs',
         items: [
             { title: 'Laporan & Analitik', href: '/admin/laporan',  icon: TrendingUp },
+            { title: 'Log Activity', href: '/admin/log-activity',  icon: Activity },
         ],
     },
+  
     {
         label: 'Pengaturan',
         items: [

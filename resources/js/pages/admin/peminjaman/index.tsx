@@ -325,7 +325,12 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                         <div className="flex items-center justify-between flex-wrap gap-3">
                             <div>
                                 <CardTitle className="text-base">Daftar Peminjaman</CardTitle>
-                                <CardDescription className="text-xs">Total {peminjaman.total} catatan</CardDescription>
+                                <CardDescription className="text-xs">
+                                    Total {peminjaman.total} catatan
+                                    {peminjaman.last_page > 1 && (
+                                        <span className="ml-1 text-muted-foreground/70">· Halaman {peminjaman.current_page} dari {peminjaman.last_page}</span>
+                                    )}
+                                </CardDescription>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); applyFilters(undefined, val); }}>
@@ -464,12 +469,76 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                         </div>
 
                         {peminjaman.last_page > 1 && (
-                            <div className="flex justify-center gap-1 py-4">
-                                {peminjaman.links.map((link, i) => (
-                                    <Button key={i} size="sm" variant={link.active ? 'default' : 'outline'}
-                                        disabled={!link.url} onClick={() => link.url && router.get(link.url)}
-                                        dangerouslySetInnerHTML={{ __html: link.label }} />
-                                ))}
+                            <div className="border-t">
+                                {/* Info range data */}
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3">
+                                    <p className="text-xs text-muted-foreground">
+                                        Menampilkan <span className="font-medium text-foreground">{peminjaman.from ?? 0}</span>–<span className="font-medium text-foreground">{peminjaman.to ?? 0}</span> dari <span className="font-medium text-foreground">{peminjaman.total}</span> data
+                                    </p>
+
+                                    {/* Navigasi halaman */}
+                                    <div className="flex items-center gap-1">
+                                        {/* Tombol Sebelumnya */}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 px-3 text-xs"
+                                            disabled={!peminjaman.prev_page_url}
+                                            onClick={() => peminjaman.prev_page_url && router.get(peminjaman.prev_page_url)}
+                                        >
+                                            ← Sebelumnya
+                                        </Button>
+
+                                        {/* Nomor halaman (maks 5 tombol) */}
+                                        {(() => {
+                                            const total = peminjaman.last_page;
+                                            const current = peminjaman.current_page;
+                                            const pages: (number | '...')[] = [];
+
+                                            if (total <= 7) {
+                                                for (let i = 1; i <= total; i++) pages.push(i);
+                                            } else {
+                                                pages.push(1);
+                                                if (current > 3) pages.push('...');
+                                                const start = Math.max(2, current - 1);
+                                                const end   = Math.min(total - 1, current + 1);
+                                                for (let i = start; i <= end; i++) pages.push(i);
+                                                if (current < total - 2) pages.push('...');
+                                                pages.push(total);
+                                            }
+
+                                            return pages.map((p, i) =>
+                                                p === '...' ? (
+                                                    <span key={`ellipsis-${i}`} className="px-1 text-xs text-muted-foreground select-none">…</span>
+                                                ) : (
+                                                    <Button
+                                                        key={p}
+                                                        size="sm"
+                                                        variant={p === current ? 'default' : 'outline'}
+                                                        className="h-8 w-8 p-0 text-xs"
+                                                        onClick={() => {
+                                                            const link = peminjaman.links.find(l => l.label === String(p));
+                                                            if (link?.url) router.get(link.url);
+                                                        }}
+                                                    >
+                                                        {p}
+                                                    </Button>
+                                                )
+                                            );
+                                        })()}
+
+                                        {/* Tombol Berikutnya */}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 px-3 text-xs"
+                                            disabled={!peminjaman.next_page_url}
+                                            onClick={() => peminjaman.next_page_url && router.get(peminjaman.next_page_url)}
+                                        >
+                                            Berikutnya →
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </CardContent>

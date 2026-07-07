@@ -15,14 +15,15 @@ class PeminjamanController extends Controller
 {
     public function __construct(
         private readonly PeminjamanService $peminjamanService
-    ) {}
+    ) {
+    }
 
     /**
      * Halaman form + daftar peminjaman milik CS/Admin.
      */
     public function index(Request $request): Response
     {
-        $user    = $request->user();
+        $user = $request->user();
         $filters = array_merge(
             $request->only('q', 'status'),
             // CS hanya lihat miliknya sendiri; Admin bisa lihat miliknya (non-admin route)
@@ -31,9 +32,9 @@ class PeminjamanController extends Controller
 
         return Inertia::render('peminjaman/index', [
             'peminjaman' => $this->peminjamanService->daftar($filters),
-            'statistik'  => $this->peminjamanService->statistik(),
-            'keyword'    => $request->get('q', ''),
-            'filter'     => $request->get('status', ''),
+            'statistik' => $this->peminjamanService->statistik(),
+            'keyword' => $request->get('q', ''),
+            'filter' => $request->get('status', ''),
         ]);
     }
 
@@ -45,11 +46,11 @@ class PeminjamanController extends Controller
     {
         $request->validate([
             'nama_peminjam' => ['required', 'string', 'max:255'],
-            'notas_nik'     => ['required', 'string', 'max:50'],
-            'nama_dosir'    => ['required', 'string', 'max:255'],
-            'no_dosir'      => ['required', 'string', 'max:50'],
-            'foto_bukti'    => ['required', 'string'], // base64 image
-            'catatan'       => ['nullable', 'string', 'max:1000'],
+            'notas_nik' => ['required', 'string', 'max:50'],
+            'nama_dosir' => ['required', 'string', 'max:255'],
+            'no_dosir' => ['required', 'string', 'max:50'],
+            'foto_bukti' => ['required', 'string'], // base64 image
+            'catatan' => ['nullable', 'string', 'max:1000'],
         ]);
 
         // Simpan foto base64 ke storage
@@ -85,7 +86,7 @@ class PeminjamanController extends Controller
     public function poll(Request $request): JsonResponse
     {
         $since = $request->get('since');
-        
+
         if (!$since) {
             return response()->json([
                 'items' => [],
@@ -140,11 +141,11 @@ class PeminjamanController extends Controller
 
         $request->validate([
             'nama_peminjam' => ['required', 'string', 'max:255'],
-            'notas_nik'     => ['required', 'string', 'max:50'],
-            'nama_dosir'    => ['required', 'string', 'max:255'],
-            'no_dosir'      => ['required', 'string', 'max:50'],
-            'foto_bukti'    => ['nullable', 'string'], // base64 image (opsional saat edit)
-            'catatan'       => ['nullable', 'string', 'max:1000'],
+            'notas_nik' => ['required', 'string', 'max:50'],
+            'nama_dosir' => ['required', 'string', 'max:255'],
+            'no_dosir' => ['required', 'string', 'max:50'],
+            'foto_bukti' => ['nullable', 'string'], // base64 image (opsional saat edit)
+            'catatan' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $fotoPath = $peminjaman->foto_bukti;
@@ -169,11 +170,11 @@ class PeminjamanController extends Controller
 
         $peminjaman->update([
             'nama_peminjam' => $request->nama_peminjam,
-            'notas_nik'     => $request->notas_nik,
-            'nama_dosir'    => $request->nama_dosir,
-            'no_dosir'      => $request->no_dosir,
-            'foto_bukti'    => $fotoPath,
-            'catatan'       => $request->catatan,
+            'notas_nik' => $request->notas_nik,
+            'nama_dosir' => $request->nama_dosir,
+            'no_dosir' => $request->no_dosir,
+            'foto_bukti' => $fotoPath,
+            'catatan' => $request->catatan,
         ]);
 
         return back()->with('success', 'Peminjaman berhasil diperbarui.');
