@@ -67,22 +67,29 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
         try {
             setError(null);
             setIsFallback(false);
+
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error("Kamera tidak didukung (harus menggunakan HTTPS atau localhost).");
             }
+
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480, facingMode: 'user' },
+                video: {
+                    width: 640,
+                    height: 480,
+                    facingMode: "user",
+                },
                 audio: false,
             });
+
             streamRef.current = stream;
+
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                videoRef.current.play();
+                await videoRef.current.play();
                 setStreaming(true);
             }
         } catch (err: any) {
-            console.error(err);
-            setError(err.message || 'Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.');
+            setError(`${err?.name}: ${err?.message}`);
             setStreaming(false);
             setIsFallback(true);
         }
@@ -147,7 +154,6 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
 
             <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/30">
                 {captured ? (
-                    // Preview captured photo
                     <div className="relative">
                         <img src={captured} alt="Selfie" className="w-full h-auto rounded-lg" />
                         <div className="absolute bottom-3 right-3">
@@ -163,74 +169,80 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
                             </span>
                         </div>
                     </div>
-                ) : streaming ? (
-                    // Live camera view
-                    <div className="relative">
-                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto rounded-lg mirror" style={{ transform: 'scaleX(-1)' }} />
-                        {/* Face guide overlay */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-48 h-60 border-2 border-white/50 rounded-full" />
-                        </div>
-                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
-                            <Button type="button" onClick={capture} className="rounded-full h-14 w-14 shadow-xl bg-white hover:bg-white/90 text-foreground">
-                                <Camera className="h-6 w-6" />
-                            </Button>
-                        </div>
-                        <div className="absolute top-3 left-3">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/90 px-2.5 py-1 text-xs font-medium text-white shadow animate-pulse">
-                                <span className="h-2 w-2 rounded-full bg-white" />
-                                Kamera Aktif
-                            </span>
-                        </div>
-                    </div>
                 ) : (
-                    // Camera off state
-                    <div className="flex flex-col items-center justify-center py-12 gap-4">
-                        {error ? (
-                            <>
-                                <XCircle className="h-12 w-12 text-destructive/40" />
-                                <p className="text-sm text-destructive text-center max-w-xs">{error}</p>
-                                <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={startCamera}>
-                                        Coba Lagi Kamera
-                                    </Button>
-                                    <Button type="button" onClick={() => fileInputRef.current?.click()}>
-                                        <Upload className="h-4 w-4 mr-1.5" />
-                                        Unggah Foto
-                                    </Button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                                    <Camera className="h-8 w-8 text-primary" />
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-sm font-medium">Ambil Foto Selfie Peminjam</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        Pastikan wajah terlihat jelas untuk verifikasi
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button type="button" onClick={startCamera}>
-                                        <Camera className="h-4 w-4 mr-1.5" />
-                                        Buka Kamera
-                                    </Button>
-                                    <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()}>
-                                        <Upload className="h-4 w-4 mr-1.5" />
-                                        Pilih Foto
-                                    </Button>
-                                </div>
-                            </>
+                    <>
+                        <div className={`relative ${streaming ? '' : 'hidden'}`}>
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                playsInline
+                                muted
+                                className="w-full h-auto rounded-lg mirror"
+                                style={{ transform: 'scaleX(-1)' }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="w-48 h-60 border-2 border-white/50 rounded-full" />
+                            </div>
+                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
+                                <Button type="button" onClick={capture} className="rounded-full h-14 w-14 shadow-xl bg-white hover:bg-white/90 text-foreground">
+                                    <Camera className="h-6 w-6" />
+                                </Button>
+                            </div>
+                            <div className="absolute top-3 left-3">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-red-500/90 px-2.5 py-1 text-xs font-medium text-white shadow animate-pulse">
+                                    <span className="h-2 w-2 rounded-full bg-white" />
+                                    Kamera Aktif
+                                </span>
+                            </div>
+                        </div>
+
+                        {!streaming && (
+                            <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                {error ? (
+                                    <>
+                                        <XCircle className="h-12 w-12 text-destructive/40" />
+                                        <p className="text-sm text-destructive text-center max-w-xs">{error}</p>
+                                        <div className="flex gap-2">
+                                            <Button type="button" variant="outline" onClick={startCamera}>
+                                                Coba Lagi Kamera
+                                            </Button>
+                                            <Button type="button" onClick={() => fileInputRef.current?.click()}>
+                                                <Upload className="h-4 w-4 mr-1.5" />
+                                                Unggah Foto
+                                            </Button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                                            <Camera className="h-8 w-8 text-primary" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-medium">Ambil Foto Selfie Peminjam</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                Pastikan wajah terlihat jelas untuk verifikasi
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button type="button" onClick={startCamera}>
+                                                <Camera className="h-4 w-4 mr-1.5" />
+                                                Buka Kamera
+                                            </Button>
+                                            <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                                                <Upload className="h-4 w-4 mr-1.5" />
+                                                Pilih Foto
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         )}
-                    </div>
+                    </>
                 )}
             </div>
 
-            {/* Hidden canvas for capture */}
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Hidden file input for fallback */}
             <input
                 type="file"
                 ref={fileInputRef}
