@@ -118,16 +118,30 @@ class PeminjamanService
      */
     public function statistikPerBulan(int $year): array
     {
+        $rawStats = Peminjaman::selectRaw('
+                EXTRACT(MONTH FROM created_at)::integer as bulan,
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE status = \'menunggu\') as menunggu,
+                COUNT(*) FILTER (WHERE status = \'dipinjam\') as dipinjam,
+                COUNT(*) FILTER (WHERE status = \'dikembalikan\') as dikembalikan,
+                COUNT(*) FILTER (WHERE status = \'ditolak\') as ditolak
+            ')
+            ->whereYear('created_at', $year)
+            ->groupByRaw('EXTRACT(MONTH FROM created_at)')
+            ->get()
+            ->keyBy('bulan');
+
         $months = [];
         for ($m = 1; $m <= 12; $m++) {
+            $monthData = $rawStats->get($m);
             $months[] = [
                 'bulan' => $m,
                 'label' => Carbon::create($year, $m, 1)->isoFormat('MMM'),
-                'total' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->count(),
-                'menunggu' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('menunggu')->count(),
-                'dipinjam' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('dipinjam')->count(),
-                'dikembalikan' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('dikembalikan')->count(),
-                'ditolak' => Peminjaman::whereYear('created_at', $year)->whereMonth('created_at', $m)->byStatus('ditolak')->count(),
+                'total' => (int) ($monthData->total ?? 0),
+                'menunggu' => (int) ($monthData->menunggu ?? 0),
+                'dipinjam' => (int) ($monthData->dipinjam ?? 0),
+                'dikembalikan' => (int) ($monthData->dikembalikan ?? 0),
+                'ditolak' => (int) ($monthData->ditolak ?? 0),
             ];
         }
         return $months;
@@ -138,7 +152,11 @@ class PeminjamanService
      */
     public function topCS(int $limit = 5): array
     {
-        return User::withCount('peminjaman')
+        return User::withCount([
+                'peminjaman',
+                'peminjaman as dipinjam' => fn($q) => $q->byStatus('dipinjam'),
+                'peminjaman as dikembalikan' => fn($q) => $q->byStatus('dikembalikan'),
+            ])
             ->where('role', 'customer_services')
             ->orderByDesc('peminjaman_count')
             ->limit($limit)
@@ -148,8 +166,8 @@ class PeminjamanService
                 'name' => $u->name,
                 'no_karyawan' => $u->no_karyawan,
                 'peminjaman_count' => $u->peminjaman_count,
-                'dipinjam' => $u->peminjaman()->byStatus('dipinjam')->count(),
-                'dikembalikan' => $u->peminjaman()->byStatus('dikembalikan')->count(),
+                'dipinjam' => $u->dipinjam_count ?? 0,
+                'dikembalikan' => $u->dikembalikan_count ?? 0,
             ])
             ->toArray();
     }

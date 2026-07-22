@@ -51,6 +51,13 @@ interface Props {
     filter: string;
 }
 
+// Helper untuk URL Foto (mendukung ImgBB dan Local Storage)
+const getPhotoUrl = (path: string | null) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    return `/storage/${path}`;
+};
+
 // ─── Dialog Bukti Foto & Detail ──────────────────────────────────────────
 function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: boolean; onClose: () => void }) {
     return (
@@ -61,7 +68,7 @@ function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: bool
                 </DialogHeader>
                 <div className="space-y-3">
                     {item.foto_bukti ? (
-                        <img src={`/storage/${item.foto_bukti}`} alt="Selfie" className="w-full rounded-lg" />
+                        <img src={getPhotoUrl(item.foto_bukti)} alt="Selfie" className="w-full rounded-lg" />
                     ) : (
                         <div className="flex items-center justify-center py-12 bg-muted rounded-lg">
                             <Image className="h-12 w-12 text-muted-foreground/30" />
@@ -395,7 +402,7 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                                                         className="w-10 h-10 rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all cursor-pointer shrink-0"
                                                     >
                                                         {item.foto_bukti ? (
-                                                            <img src={`/storage/${item.foto_bukti}`} alt="Selfie" className="w-full h-full object-cover" />
+                                                            <img src={getPhotoUrl(item.foto_bukti)} alt="Selfie" className="w-full h-full object-cover" />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center">
                                                                 <Camera className="h-4 w-4 text-muted-foreground/40" />

@@ -14,11 +14,11 @@ class DatabaseSeeder extends Seeder
     {
         // Super Admin
         User::firstOrCreate(
-            ['email' => 'super@admin.com'],
+            ['email' => 'inekeberliana11@gmail.com'],
             [
                 'name'         => 'Super Admin',
                 'no_karyawan'  => 'ADM-001',
-                'password'     => bcrypt('password'),
+                'password'     => 'admin123',
                 'role'         => 'admin',
                 'no_hp'        => '081234567890',
                 'status'       => 'aktif',

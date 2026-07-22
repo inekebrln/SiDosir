@@ -50,6 +50,13 @@ interface Props {
     isAdmin?: boolean;
 }
 
+// Helper untuk URL Foto (mendukung ImgBB dan Local Storage)
+const getPhotoUrl = (path: string | null) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    return `/storage/${path}`;
+};
+
 export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin = false }: Props) {
     const { auth } = usePage<{ auth: { user: User } }>().props;
     const user = auth.user;
@@ -408,7 +415,7 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                                                     <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0 border border-neutral-200/50 shadow-inner group-hover:scale-105 transition-transform duration-200">
                                                         {item.foto_bukti ? (
                                                             <img 
-                                                                src={`/storage/${item.foto_bukti}`} 
+                                                                src={getPhotoUrl(item.foto_bukti)} 
                                                                 alt={item.nama_peminjam} 
                                                                 className="w-full h-full object-cover" 
                                                             />

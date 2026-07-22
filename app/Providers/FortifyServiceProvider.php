@@ -4,12 +4,14 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Responses\LoginResponse;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 
@@ -20,7 +22,7 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
     }
 
     /**
@@ -36,16 +38,29 @@ class FortifyServiceProvider extends ServiceProvider
     /**
      * Configure Fortify actions.
      */
-    private function configureActions(): void
+    protected function configureActions(): void
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::createUsersUsing(CreateNewUser::class);
+
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = \App\Models\User::where('email', $request->email)->first();
+
+            if ($user && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                if (!$user->is_active) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'email' => 'Akun Anda diblokir karena terlalu banyak salah memasukkan OTP. Silakan hubungi Admin.',
+                    ]);
+                }
+                return $user;
+            }
+        });
     }
 
     /**
      * Configure Fortify views.
      */
-    private function configureViews(): void
+    protected function configureViews(): void
     {
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
@@ -76,7 +91,7 @@ class FortifyServiceProvider extends ServiceProvider
     /**
      * Configure rate limiting.
      */
-    private function configureRateLimiting(): void
+    protected function configureRateLimiting(): void
     {
         RateLimiter::for('two-factor', function (Request $request) {
             return Limit::perMinute(5)->by($request->session()->get('login.id'));

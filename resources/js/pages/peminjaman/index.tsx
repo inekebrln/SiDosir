@@ -18,7 +18,7 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import type { PaginatedData, User as UserType } from '@/types';
- 
+
 interface PeminjamanItem {
     id: number;
     user_id: number;
@@ -255,6 +255,13 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
     );
 }
 
+// Helper untuk URL Foto (mendukung ImgBB dan Local Storage)
+const getPhotoUrl = (path: string | null) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    return `/storage/${path}`;
+};
+
 // ─── Dialog Bukti Foto & Detail ──────────────────────────────────────────
 function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: boolean; onClose: () => void }) {
     return (
@@ -265,7 +272,7 @@ function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: bool
                 </DialogHeader>
                 <div className="space-y-3">
                     {item.foto_bukti ? (
-                        <img src={`/storage/${item.foto_bukti}`} alt="Selfie" className="w-full rounded-lg" />
+                        <img src={getPhotoUrl(item.foto_bukti)} alt="Selfie" className="w-full rounded-lg" />
                     ) : (
                         <div className="flex items-center justify-center py-12 bg-muted rounded-lg">
                             <Image className="h-12 w-12 text-muted-foreground/30" />
@@ -291,10 +298,10 @@ function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: bool
 // ─── Badge Status ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: PeminjamanItem['status'] }) {
     const config = {
-        menunggu:     { label: 'Menunggu ACC', cls: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/50' },
-        dipinjam:     { label: 'Dipinjam',      cls: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50' },
-        dikembalikan: { label: 'Dikembalikan',  cls: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50' },
-        ditolak:      { label: 'Ditolak',       cls: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50' },
+        menunggu: { label: 'Menunggu ACC', cls: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/50' },
+        dipinjam: { label: 'Dipinjam', cls: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50' },
+        dikembalikan: { label: 'Dikembalikan', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50' },
+        ditolak: { label: 'Ditolak', cls: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50' },
     };
     const { label, cls } = config[status];
     return (
@@ -336,7 +343,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
             notas_nik: item.notas_nik,
             nama_dosir: item.nama_dosir,
             no_dosir: item.no_dosir,
-            foto_bukti: item.foto_bukti ? `/storage/${item.foto_bukti}` : '',
+            foto_bukti: getPhotoUrl(item.foto_bukti),
             catatan: item.catatan || '',
         });
         setIsModalOpen(true);
@@ -364,7 +371,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
 
     const applyFilters = (newQ?: string, newStatus?: string) => {
         const params: Record<string, string> = {};
-        const finalQ      = newQ      ?? q;
+        const finalQ = newQ ?? q;
         const finalStatus = newStatus ?? statusFilter;
         if (finalQ) params.q = finalQ;
         if (finalStatus !== 'semua') params.status = finalStatus;
@@ -377,10 +384,10 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
     };
 
     const statsItems = [
-        { label: 'Total Catatan',   value: statistik.total,             color: 'text-foreground',  bg: 'bg-muted/50 dark:bg-muted/30 border border-border/50' },
-        { label: 'Menunggu ACC',    value: statistik.menunggu || 0,     color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50' },
-        { label: 'Sedang Dipinjam', value: statistik.dipinjam,          color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50' },
-        { label: 'Sudah Kembali',   value: statistik.dikembalikan,      color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50' },
+        { label: 'Total Catatan', value: statistik.total, color: 'text-foreground', bg: 'bg-muted/50 dark:bg-muted/30 border border-border/50' },
+        { label: 'Menunggu ACC', value: statistik.menunggu || 0, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50' },
+        { label: 'Sedang Dipinjam', value: statistik.dipinjam, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50' },
+        { label: 'Sudah Kembali', value: statistik.dikembalikan, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50' },
     ];
 
     return (
@@ -516,7 +523,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
                                             >
                                                 {item.foto_bukti ? (
                                                     <img
-                                                        src={`/storage/${item.foto_bukti}`}
+                                                        src={getPhotoUrl(item.foto_bukti)}
                                                         alt="Selfie"
                                                         className="w-full h-full object-cover"
                                                     />

@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-#[Fillable(['name', 'no_karyawan', 'email', 'password', 'role', 'no_hp', 'status'])]
+#[Fillable(['name', 'no_karyawan', 'email', 'password', 'role', 'no_hp', 'status', 'is_active', 'otp_failed_attempts'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -40,6 +40,7 @@ class User extends Authenticatable
         return $this->hasMany(Peminjaman::class);
     }
 
+    
     /**
      * Riwayat aktivitas user.
      */

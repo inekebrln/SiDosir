@@ -16,7 +16,19 @@ export default function AppLayout({
 
     useEffect(() => {
         if (props.flash?.success) {
-            toast.success(props.flash.success);
+            if (props.flash.success === 'Berhasil Login') {
+                // @ts-ignore
+                if (typeof window.Swal !== 'undefined') {
+                    // @ts-ignore
+                    window.Swal.fire({
+                        icon: 'success',
+                        title: 'Login Berhasil!',
+                        text: 'Selamat datang kembali di SiDosir.',
+                    });
+                }
+            } else {
+                toast.success(props.flash.success);
+            }
         }
         if (props.flash?.error) {
             toast.error(props.flash.error);

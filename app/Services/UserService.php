@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Hash;
+use App\Mail\KredensialUserMail;
+use Illuminate\Support\Facades\Mail;
 
 class UserService
 {
@@ -53,15 +55,24 @@ class UserService
      * Buat user baru.
      */
     public function buat(array $data): User
-    {
-        $data['password'] = Hash::make($data['password']);
+{
+    $plainPassword = $data['password']; // simpan sebelum di-hash
 
-        return User::create($data);
+    $data['password'] = Hash::make($data['password']);
+    $data['two_factor_method'] = 'email';
+
+    $user = User::create($data);
+
+    // Kirim email kredensial ke karyawan
+    try {
+        Mail::to($user->email)->send(new KredensialUserMail($user, $plainPassword));
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::warning('Gagal kirim email (biasanya karena limit Resend domain): ' . $e->getMessage());
     }
 
-    /**
-     * Update data user.
-     */
+    return $user;
+}
+
     public function update(User $user, array $data): User
     {
         // Hanya hash password jika diisi
@@ -69,6 +80,16 @@ class UserService
             $data['password'] = Hash::make($data['password']);
         } else {
             unset($data['password']);
+        }
+
+        // Sinkronisasi is_active dengan status dari form edit
+        if (isset($data['status'])) {
+            if ($data['status'] === 'aktif') {
+                $data['is_active'] = true;
+                $data['otp_failed_attempts'] = 0;
+            } else {
+                $data['is_active'] = false;
+            }
         }
 
         $user->update($data);
@@ -94,9 +115,20 @@ class UserService
      */
     public function toggleStatus(User $user): User
     {
-        $user->update([
-            'status' => $user->status === 'aktif' ? 'nonaktif' : 'aktif',
-        ]);
+        $newStatus = $user->status === 'aktif' ? 'nonaktif' : 'aktif';
+
+        $updates = [
+            'status' => $newStatus,
+        ];
+
+        if ($newStatus === 'aktif') {
+            $updates['is_active'] = true;
+            $updates['otp_failed_attempts'] = 0;
+        } else {
+            $updates['is_active'] = false;
+        }
+
+        $user->update($updates);
 
         return $user->fresh();
     }

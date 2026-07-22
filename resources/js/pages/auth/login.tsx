@@ -7,9 +7,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { register } from '@/routes';
+import { login } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+
 
 type Props = {
     status?: string;
@@ -17,20 +18,38 @@ type Props = {
     canRegister: boolean;
 };
 
+import { useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
+
 export default function Login({
     status,
     canResetPassword,
     canRegister,
 }: Props) {
+    const { errors } = usePage().props;
+
+    useEffect(() => {
+        if (errors.email && errors.email.includes('diblokir')) {
+            // @ts-ignore
+            if (typeof window.Swal !== 'undefined') {
+                // @ts-ignore
+                window.Swal.fire({
+                    icon: 'error',
+                    title: 'Akses Ditolak!',
+                    text: errors.email,
+                });
+            }
+        }
+    }, [errors]);
     return (
         <>
             <Head title="Log in" />
 
             <Form
-                {...store.form()}
-                resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
-            >
+    {...((store as any).form())}
+    resetOnSuccess={['password']}
+    className="flex flex-col gap-6"
+>
                 {({ processing, errors }) => (
                     <>
                         <div className="grid gap-6">
@@ -94,14 +113,7 @@ export default function Login({
                             </Button>
                         </div>
 
-                        {canRegister && (
-                            <div className="text-center text-sm text-muted-foreground">
-                                Don't have an account?{' '}
-                                <TextLink href={register()} tabIndex={5}>
-                                    Sign up
-                                </TextLink>
-                            </div>
-                        )}
+
                     </>
                 )}
             </Form>

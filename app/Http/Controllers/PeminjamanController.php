@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -53,21 +54,24 @@ class PeminjamanController extends Controller
             'catatan' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Simpan foto base64 ke storage
+        // Simpan foto base64 ke ImgBB Cloud
         $fotoPath = null;
         if ($request->foto_bukti) {
             $imageData = $request->foto_bukti;
 
-            // Remove data:image/xxx;base64, prefix
             if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches)) {
-                $ext = $matches[1];
-                $imageData = substr($imageData, strpos($imageData, ',') + 1);
-                $imageData = base64_decode($imageData);
+                $base64Data = substr($imageData, strpos($imageData, ',') + 1);
+                
+                $response = Http::asForm()->post('https://api.imgbb.com/1/upload', [
+                    'key' => '256db2b8b8289760fe08915cfbe2541d',
+                    'image' => $base64Data,
+                ]);
 
-                $filename = 'face_' . time() . '_' . uniqid() . '.' . $ext;
-                $fotoPath = 'peminjaman/' . $filename;
-
-                Storage::disk('public')->put($fotoPath, $imageData);
+                if ($response->successful()) {
+                    $fotoPath = $response->json('data.url');
+                } else {
+                    return back()->with('error', 'Gagal mengunggah foto ke server Cloud.');
+                }
             }
         }
 
@@ -150,21 +154,25 @@ class PeminjamanController extends Controller
 
         $fotoPath = $peminjaman->foto_bukti;
         if ($request->foto_bukti && str_starts_with($request->foto_bukti, 'data:image')) {
-            // Hapus foto lama jika ada
-            if ($peminjaman->foto_bukti) {
+            // Hapus foto lama jika ada di local storage (bukan link imgbb)
+            if ($peminjaman->foto_bukti && !str_starts_with($peminjaman->foto_bukti, 'http')) {
                 Storage::disk('public')->delete($peminjaman->foto_bukti);
             }
 
             $imageData = $request->foto_bukti;
             if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches)) {
-                $ext = $matches[1];
-                $imageData = substr($imageData, strpos($imageData, ',') + 1);
-                $imageData = base64_decode($imageData);
+                $base64Data = substr($imageData, strpos($imageData, ',') + 1);
+                
+                $response = Http::asForm()->post('https://api.imgbb.com/1/upload', [
+                    'key' => '256db2b8b8289760fe08915cfbe2541d',
+                    'image' => $base64Data,
+                ]);
 
-                $filename = 'face_' . time() . '_' . uniqid() . '.' . $ext;
-                $fotoPath = 'peminjaman/' . $filename;
-
-                Storage::disk('public')->put($fotoPath, $imageData);
+                if ($response->successful()) {
+                    $fotoPath = $response->json('data.url');
+                } else {
+                    return back()->with('error', 'Gagal mengunggah foto ke server Cloud.');
+                }
             }
         }
 

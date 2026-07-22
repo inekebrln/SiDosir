@@ -7,6 +7,8 @@ export default function AppLogoIcon(props: ImgHTMLAttributes<HTMLImageElement>) 
             src="/logo-taspen no bg.png"
             alt="TASPEN Logo"
             className={`object-contain ${props.className || ''}`}
+            width={32}
+            height={32}
         />
     );
 }
