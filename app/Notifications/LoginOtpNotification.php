@@ -23,7 +23,7 @@ class LoginOtpNotification extends Notification implements ShouldQueue
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Kode Verifikasi Login SiDosir')
+            ->subject('Kode Verifikasi Login SIPDosir')
             ->greeting('Halo ' . $notifiable->name . ',')
             ->line('Kode verifikasi login Anda adalah:')
             ->line('## ' . $this->code)

@@ -5,6 +5,7 @@ import {
     User, Hash, BookOpen, StickyNote, CheckCircle2, XCircle, Image, Upload,
     Search, Filter, Plus, Pencil
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,6 +133,16 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Validasi max 5MB (5 * 1024 * 1024)
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Ukuran Foto Terlalu Besar!', {
+                description: 'Ukuran foto maksimal yang diperbolehkan adalah 5MB. Silakan pilih foto dengan ukuran lebih kecil.',
+            });
+            // Reset input file
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = (event) => {
             if (event.target?.result) {
@@ -197,7 +208,7 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
                         </div>
 
                         {!streaming && (
-                            <div className="flex flex-col items-center justify-center py-12 gap-4">
+                            <div className="flex flex-col items-center justify-center py-8 gap-4">
                                 {error ? (
                                     <>
                                         <XCircle className="h-12 w-12 text-destructive/40" />
@@ -247,7 +258,6 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
                 type="file"
                 ref={fileInputRef}
                 accept="image/*"
-                capture="user"
                 className="hidden"
                 onChange={handleFileUpload}
             />
@@ -255,24 +265,31 @@ function WebcamCapture({ onCapture, captured }: { onCapture: (data: string) => v
     );
 }
 
-// Helper untuk URL Foto (mendukung ImgBB dan Local Storage)
 const getPhotoUrl = (path: string | null) => {
     if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `/storage/${path}`;
+    let url = path;
+    if (url.startsWith('http://')) {
+        url = url.replace('http://', 'https://');
+    }
+    if (url.startsWith('https://')) {
+        return url.replace('i.ibb.co', 'i.ibb.co.com');
+    }
+    const clean = url.replace(/^\/+/, '');
+    const relativePath = clean.startsWith('storage/') ? clean.slice(8) : clean;
+    return `/storage/${relativePath}?v=1`;
 };
 
 // ─── Dialog Bukti Foto & Detail ──────────────────────────────────────────
 function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: boolean; onClose: () => void }) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[92vw] sm:w-full max-w-md rounded-2xl p-5 sm:p-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
                 <DialogHeader>
                     <DialogTitle className="text-base">Detail Peminjaman</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3">
                     {item.foto_bukti ? (
-                        <img src={getPhotoUrl(item.foto_bukti)} alt="Selfie" className="w-full rounded-lg" />
+                        <img src={getPhotoUrl(item.foto_bukti)} alt="Selfie" className="w-full max-h-64 object-contain rounded-lg bg-neutral-100 dark:bg-neutral-800" />
                     ) : (
                         <div className="flex items-center justify-center py-12 bg-muted rounded-lg">
                             <Image className="h-12 w-12 text-muted-foreground/30" />
@@ -281,7 +298,16 @@ function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: bool
                     <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-sm">
                         <p><span className="text-muted-foreground">Peminjam:</span> <strong>{item.nama_peminjam}</strong> ({item.notas_nik})</p>
                         <p><span className="text-muted-foreground">Dosir:</span> {item.no_dosir} — {item.nama_dosir}</p>
-                        <p><span className="text-muted-foreground">Status:</span> <span className="font-medium uppercase">{item.status}</span></p>
+                        <p>
+                            <span className="text-muted-foreground">Status:</span>{' '}
+                            <span className={`font-bold uppercase ${
+                                item.status === 'dikembalikan' ? 'text-emerald-600' :
+                                item.status === 'dipinjam' ? 'text-amber-600' :
+                                item.status === 'ditolak' ? 'text-rose-600' : 'text-blue-600'
+                            }`}>
+                                {item.status}
+                            </span>
+                        </p>
                         {item.tgl_pinjam && <p><span className="text-muted-foreground">Tgl. Pinjam:</span> {new Date(item.tgl_pinjam).toLocaleDateString('id-ID')}</p>}
                         {item.tgl_kembali && <p><span className="text-muted-foreground">Tgl. Kembali:</span> {new Date(item.tgl_kembali).toLocaleDateString('id-ID')}</p>}
                         {item.lokasi_rak && <p><span className="text-muted-foreground">Lokasi Rak:</span> {item.lokasi_rak}</p>}
@@ -435,7 +461,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
                             </div>
 
                             {/* Search & Filter Bar */}
-                            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                            <div className="flex flex-row items-center gap-2 mt-2">
                                 <Select
                                     value={statusFilter}
                                     onValueChange={(val) => {
@@ -443,8 +469,8 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
                                         applyFilters(undefined, val);
                                     }}
                                 >
-                                    <SelectTrigger className="w-full sm:w-36 h-8 text-xs">
-                                        <Filter className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                                    <SelectTrigger className="w-28 sm:w-36 h-8 text-xs shrink-0">
+                                        <Filter className="h-3 w-3 mr-1.5 text-muted-foreground shrink-0" />
                                         <SelectValue placeholder="Semua Status" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -514,7 +540,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
                             ) : (
                                 <div className="space-y-3">
                                     {peminjaman.data.map((item) => (
-                                        <div key={item.id} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/20 transition-colors">
+                                        <div key={item.id} onClick={() => setPhotoItem(item)} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/20 transition-colors cursor-pointer">
                                             {/* Foto Bukti Thumbnail */}
                                             <button
                                                 type="button"
@@ -545,7 +571,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
                                                             size="sm"
                                                             variant="outline"
                                                             className="h-7 text-xs flex items-center gap-1 hover:border-[#003087] hover:text-[#003087]"
-                                                            onClick={() => openEditModal(item)}
+                                                            onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
                                                         >
                                                             <Pencil className="h-3.5 w-3.5" />
                                                             Edit
@@ -594,7 +620,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
 
             {/* Modal Peminjaman (Tambah / Edit) */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto w-[92vw] sm:w-full p-5 sm:p-6 rounded-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-base flex items-center gap-2">
                             <ClipboardList className="h-5 w-5 text-primary" />
@@ -605,7 +631,7 @@ export default function PeminjamanIndex({ peminjaman, statistik, keyword = '', f
                         </DialogDescription>
                     </DialogHeader>
                     <Separator />
-                    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                    <form onSubmit={handleSubmit} className="space-y-3 pt-2">
                         {/* Nama Peminjam */}
                         <div className="space-y-1.5">
                             <Label htmlFor="nama_peminjam" className="text-sm flex items-center gap-1.5">

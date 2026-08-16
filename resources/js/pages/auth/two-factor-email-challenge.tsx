@@ -83,24 +83,27 @@ export default function TwoFactorEmailChallenge() {
             <Head title="Verifikasi Kode Email" />
 
             <form onSubmit={submit} className="flex flex-col items-center gap-6">
-                <div className="grid gap-2">
+                <div className="flex flex-col items-center justify-center gap-2 text-center w-full">
                     <Label htmlFor="code" className="sr-only">
                         Kode OTP
                     </Label>
-                    <InputOTP
-                        maxLength={6}
-                        id="code"
-                        value={data.code}
-                        onChange={(value) => setData('code', value)}
-                        disabled={processing}
-                        autoFocus
-                    >
-                        <InputOTPGroup>
-                            {Array.from({ length: 6 }).map((_, i) => (
-                                <InputOTPSlot key={i} index={i} />
-                            ))}
-                        </InputOTPGroup>
-                    </InputOTP>
+                    <div className="flex w-full items-center justify-center">
+                        <InputOTP
+                            maxLength={6}
+                            id="code"
+                            value={data.code}
+                            onChange={(value) => setData('code', value)}
+                            disabled={processing}
+                            autoFocus
+                            containerClassName="justify-center"
+                        >
+                            <InputOTPGroup>
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <InputOTPSlot key={i} index={i} />
+                                ))}
+                            </InputOTPGroup>
+                        </InputOTP>
+                    </div>
                     <InputError message={errors.code} className="text-center" />
                 </div>
 

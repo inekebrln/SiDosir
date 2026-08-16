@@ -11,6 +11,8 @@ Route::inertia('/', 'welcome', [
     'canRegister' => Features::enabled(Features::registration()),
 ])->name('home');
 
+Route::get('/photo-proxy', \App\Http\Controllers\PhotoProxyController::class)->name('photo.proxy');
+
 // ── Halaman challenge OTP email: HARUS di luar middleware auth,
 // karena user belum login penuh saat mengakses ini ──
 Route::get('/two-factor-email-challenge', [EmailTwoFactorController::class, 'challenge'])->name('two-factor.email.challenge');

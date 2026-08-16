@@ -82,7 +82,7 @@ function UserFormDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="w-[92vw] sm:w-full max-w-lg rounded-2xl p-5 sm:p-6">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         {mode === 'create' ? (
@@ -130,7 +130,7 @@ function UserFormDialog({
                         <Input
                             id="email"
                             type="email"
-                            placeholder="user@sidosir.com"
+                            placeholder="user@sipdosir.com"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
                             required
@@ -360,9 +360,9 @@ export default function AdminUsersIndex({ users, keyword, filter, statistik }: P
                                 <CardTitle className="text-base">Daftar User</CardTitle>
                                 <CardDescription className="text-xs">Total {users.total} pengguna terdaftar</CardDescription>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-row items-center gap-2 w-full mt-2 sm:mt-0">
                                 <Select value={roleFilter} onValueChange={handleFilter}>
-                                    <SelectTrigger className="w-40 h-8 text-xs">
+                                    <SelectTrigger className="w-32 sm:w-40 h-8 text-xs shrink-0">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -371,17 +371,17 @@ export default function AdminUsersIndex({ users, keyword, filter, statistik }: P
                                         <SelectItem value="customer_services">Customer Services</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <form onSubmit={handleSearch} className="flex gap-2">
-                                    <div className="relative">
+                                <form onSubmit={handleSearch} className="flex gap-2 w-full sm:w-auto flex-1">
+                                    <div className="relative flex-1">
                                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            className="pl-8 w-56 h-8 text-xs"
+                                            className="pl-8 w-full sm:w-56 h-8 text-xs"
                                             placeholder="Cari nama / email..."
                                             value={q}
                                             onChange={(e) => setQ(e.target.value)}
                                         />
                                     </div>
-                                    <Button type="submit" size="sm" variant="secondary" className="h-8">Cari</Button>
+                                    <Button type="submit" size="sm" variant="secondary" className="h-8 shrink-0">Cari</Button>
                                 </form>
                             </div>
                         </div>

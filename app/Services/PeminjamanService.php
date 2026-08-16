@@ -82,16 +82,21 @@ class PeminjamanService
     }
 
     /**
-     * Statistik peminjaman untuk dashboard.
+     * Statistik peminjaman untuk dashboard (mendukung filter per user).
      */
-    public function statistik(): array
+    public function statistik(?int $userId = null): array
     {
+        $query = Peminjaman::query();
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+
         return [
-            'total' => Peminjaman::count(),
-            'menunggu' => Peminjaman::byStatus('menunggu')->count(),
-            'dipinjam' => Peminjaman::byStatus('dipinjam')->count(),
-            'dikembalikan' => Peminjaman::byStatus('dikembalikan')->count(),
-            'ditolak' => Peminjaman::byStatus('ditolak')->count(),
+            'total' => (clone $query)->count(),
+            'menunggu' => (clone $query)->byStatus('menunggu')->count(),
+            'dipinjam' => (clone $query)->byStatus('dipinjam')->count(),
+            'dikembalikan' => (clone $query)->byStatus('dikembalikan')->count(),
+            'ditolak' => (clone $query)->byStatus('ditolak')->count(),
         ];
     }
 

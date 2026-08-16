@@ -38,8 +38,8 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                 description="Manage your profile and account settings"
             />
 
-            <div className="flex flex-col lg:flex-row lg:space-x-12">
-                <aside className="w-full max-w-xl lg:w-48">
+            <div className="flex flex-row space-x-4 md:space-x-12 mt-4 md:mt-6">
+                <aside className="w-[110px] sm:w-48 shrink-0">
                     <nav
                         className="flex flex-col space-y-1 space-x-0"
                         aria-label="Settings"
@@ -50,7 +50,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                                 size="sm"
                                 variant="ghost"
                                 asChild
-                                className={cn('w-full justify-start', {
+                                className={cn('w-full justify-start text-[11px] sm:text-sm px-2 sm:px-3', {
                                     'bg-muted': isCurrentOrParentUrl(item.href),
                                 })}
                             >
@@ -64,8 +64,6 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                         ))}
                     </nav>
                 </aside>
-
-                <Separator className="my-6 lg:hidden" />
 
                 <div className="flex-1 md:max-w-2xl">
                     <section className="max-w-xl space-y-12">

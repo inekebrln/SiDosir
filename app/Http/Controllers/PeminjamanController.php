@@ -25,15 +25,15 @@ class PeminjamanController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $isAdmin = $user->isAdmin();
         $filters = array_merge(
             $request->only('q', 'status'),
-            // CS hanya lihat miliknya sendiri; Admin bisa lihat miliknya (non-admin route)
-            ['user_id' => $user->id],
+            $isAdmin ? [] : ['user_id' => $user->id],
         );
 
         return Inertia::render('peminjaman/index', [
-            'peminjaman' => $this->peminjamanService->daftar($filters),
-            'statistik' => $this->peminjamanService->statistik(),
+            'peminjaman' => $this->peminjamanService->daftar($filters, perPage: 5),
+            'statistik' => $this->peminjamanService->statistik($isAdmin ? null : $user->id),
             'keyword' => $request->get('q', ''),
             'filter' => $request->get('status', ''),
         ]);
@@ -54,23 +54,37 @@ class PeminjamanController extends Controller
             'catatan' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Simpan foto base64 ke ImgBB Cloud
+        // Simpan foto ke ImgBB Cloud (dengan fallback local storage)
         $fotoPath = null;
         if ($request->foto_bukti) {
             $imageData = $request->foto_bukti;
 
-            if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches)) {
-                $base64Data = substr($imageData, strpos($imageData, ',') + 1);
-                
-                $response = Http::asForm()->post('https://api.imgbb.com/1/upload', [
+            if (str_starts_with($imageData, 'http')) {
+                $fotoPath = $imageData;
+            } else {
+                $base64Data = $imageData;
+                if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches)) {
+                    $base64Data = substr($imageData, strpos($imageData, ',') + 1);
+                }
+
+                // Try uploading to ImgBB Cloud
+                $response = Http::asForm()->withOptions(['verify' => false])->post('https://api.imgbb.com/1/upload', [
                     'key' => '256db2b8b8289760fe08915cfbe2541d',
                     'image' => $base64Data,
                 ]);
 
-                if ($response->successful()) {
-                    $fotoPath = $response->json('data.url');
+                if ($response->successful() && $response->json('data.url')) {
+                    $rawUrl = $response->json('data.url');
+                    $fotoPath = str_replace('i.ibb.co', 'i.ibb.co.com', $rawUrl);
                 } else {
-                    return back()->with('error', 'Gagal mengunggah foto ke server Cloud.');
+                    // Fallback ke local storage jika ImgBB offline/gagal
+                    $extension = 'jpg';
+                    $decodedData = base64_decode($base64Data, true);
+                    if ($decodedData !== false) {
+                        $fileName = 'foto_bukti/' . time() . '_' . uniqid() . '.' . $extension;
+                        Storage::disk('public')->put($fileName, $decodedData);
+                        $fotoPath = $fileName;
+                    }
                 }
             }
         }
@@ -99,22 +113,28 @@ class PeminjamanController extends Controller
         }
 
         $user = $request->user();
+        $sinceTime = \Carbon\Carbon::parse($since)->setTimezone(config('app.timezone'));
 
-        // 1. Peminjaman baru yang dibuat oleh user lain
-        $newLoans = Peminjaman::with('user')
-            ->where('created_at', '>', $since)
-            ->where('user_id', '!=', $user->id)
-            ->get()
-            ->map(function ($item) {
-                $item->notification_type = 'created';
-                return $item;
-            });
+        // 1. Peminjaman baru / berstatus 'menunggu' (dikirim ke Admin)
+        $newLoans = collect();
+        if ($user->isAdmin()) {
+            $newLoans = Peminjaman::with('user')
+                ->where(function ($query) use ($sinceTime) {
+                    $query->where('created_at', '>', $sinceTime)
+                          ->orWhere('status', 'menunggu');
+                })
+                ->get()
+                ->map(function ($item) {
+                    $item->notification_type = 'created';
+                    return $item;
+                });
+        }
 
         // 2. Perubahan status peminjaman milik user sendiri (misal: di-ACC atau ditolak)
         $updatedLoans = Peminjaman::with('user')
             ->where('user_id', $user->id)
-            ->where('updated_at', '>', $since)
-            ->whereColumn('updated_at', '>', 'created_at')
+            ->where('updated_at', '>', $sinceTime)
+            ->whereColumn('updated_at', '!=', 'created_at')
             ->get()
             ->map(function ($item) {
                 $item->notification_type = 'status_changed';
@@ -123,6 +143,14 @@ class PeminjamanController extends Controller
 
         // Gabungkan notifikasi dan urutkan berdasarkan waktu pembaruan terbaru
         $items = $newLoans->concat($updatedLoans)->sortByDesc('updated_at')->values();
+
+        \Log::info('Polling API Called:', [
+            'user' => $user->name,
+            'since' => $since,
+            'sinceTime' => $sinceTime->toDateTimeString(),
+            'items_count' => $items->count(),
+            'items' => $items->toArray()
+        ]);
 
         return response()->json([
             'items' => $items,
@@ -153,25 +181,33 @@ class PeminjamanController extends Controller
         ]);
 
         $fotoPath = $peminjaman->foto_bukti;
-        if ($request->foto_bukti && str_starts_with($request->foto_bukti, 'data:image')) {
-            // Hapus foto lama jika ada di local storage (bukan link imgbb)
+        if ($request->foto_bukti && (str_starts_with($request->foto_bukti, 'data:image') || !str_starts_with($request->foto_bukti, 'http'))) {
+            // Hapus foto lama jika ada di local storage
             if ($peminjaman->foto_bukti && !str_starts_with($peminjaman->foto_bukti, 'http')) {
                 Storage::disk('public')->delete($peminjaman->foto_bukti);
             }
 
-            $imageData = $request->foto_bukti;
+            $base64Data = $imageData;
             if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches)) {
                 $base64Data = substr($imageData, strpos($imageData, ',') + 1);
-                
-                $response = Http::asForm()->post('https://api.imgbb.com/1/upload', [
-                    'key' => '256db2b8b8289760fe08915cfbe2541d',
-                    'image' => $base64Data,
-                ]);
+            }
 
-                if ($response->successful()) {
-                    $fotoPath = $response->json('data.url');
-                } else {
-                    return back()->with('error', 'Gagal mengunggah foto ke server Cloud.');
+            // Try uploading to ImgBB Cloud
+            $response = Http::asForm()->withOptions(['verify' => false])->post('https://api.imgbb.com/1/upload', [
+                'key' => '256db2b8b8289760fe08915cfbe2541d',
+                'image' => $base64Data,
+            ]);
+
+            if ($response->successful() && $response->json('data.url')) {
+                $rawUrl = $response->json('data.url');
+                $fotoPath = str_replace('i.ibb.co', 'i.ibb.co.com', $rawUrl);
+            } else {
+                $extension = 'jpg';
+                $decodedData = base64_decode($base64Data, true);
+                if ($decodedData !== false) {
+                    $fileName = 'foto_bukti/' . time() . '_' . uniqid() . '.' . $extension;
+                    Storage::disk('public')->put($fileName, $decodedData);
+                    $fotoPath = $fileName;
                 }
             }
         }

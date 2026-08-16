@@ -19,13 +19,13 @@ class DashboardController extends Controller
 
         $data = [
             'isAdmin'    => $isAdmin,
-            'statistik'  => $this->peminjamanService->statistik(),
+            'statistik'  => $this->peminjamanService->statistik($isAdmin ? null : $user->id),
         ];
 
         if ($isAdmin) {
-            $data['peminjamanTerbaru'] = $this->peminjamanService->daftar([], 5)->items();
+            $data['peminjamanTerbaru'] = $this->peminjamanService->daftar([], 5);
         } else {
-            $data['peminjamanTerbaru'] = $this->peminjamanService->daftar(['user_id' => $user->id], 5)->items();
+            $data['peminjamanTerbaru'] = $this->peminjamanService->daftar(['user_id' => $user->id], 5);
         }
 
         return Inertia::render('dashboard', $data);
