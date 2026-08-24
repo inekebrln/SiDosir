@@ -82,16 +82,21 @@ class PeminjamanService
     }
 
     /**
-     * Statistik peminjaman untuk dashboard.
+     * Statistik peminjaman untuk dashboard (mendukung filter per user).
      */
-    public function statistik(): array
+    public function statistik(?int $userId = null): array
     {
+        $query = Peminjaman::query();
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+
         return [
-            'total' => Peminjaman::count(),
-            'menunggu' => Peminjaman::byStatus('menunggu')->count(),
-            'dipinjam' => Peminjaman::byStatus('dipinjam')->count(),
-            'dikembalikan' => Peminjaman::byStatus('dikembalikan')->count(),
-            'ditolak' => Peminjaman::byStatus('ditolak')->count(),
+            'total' => (clone $query)->count(),
+            'menunggu' => (clone $query)->byStatus('menunggu')->count(),
+            'dipinjam' => (clone $query)->byStatus('dipinjam')->count(),
+            'dikembalikan' => (clone $query)->byStatus('dikembalikan')->count(),
+            'ditolak' => (clone $query)->byStatus('ditolak')->count(),
         ];
     }
 
@@ -118,16 +123,21 @@ class PeminjamanService
      */
     public function statistikPerBulan(int $year): array
     {
-        $rawStats = Peminjaman::selectRaw('
-                EXTRACT(MONTH FROM created_at)::integer as bulan,
+        $driverName = Peminjaman::query()->getConnection()->getDriverName();
+        $monthExpr = $driverName === 'pgsql'
+            ? 'EXTRACT(MONTH FROM created_at)::integer'
+            : 'MONTH(created_at)';
+
+        $rawStats = Peminjaman::selectRaw("
+                {$monthExpr} as bulan,
                 COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status = \'menunggu\') as menunggu,
-                COUNT(*) FILTER (WHERE status = \'dipinjam\') as dipinjam,
-                COUNT(*) FILTER (WHERE status = \'dikembalikan\') as dikembalikan,
-                COUNT(*) FILTER (WHERE status = \'ditolak\') as ditolak
-            ')
+                SUM(CASE WHEN status = 'menunggu' THEN 1 ELSE 0 END) as menunggu,
+                SUM(CASE WHEN status = 'dipinjam' THEN 1 ELSE 0 END) as dipinjam,
+                SUM(CASE WHEN status = 'dikembalikan' THEN 1 ELSE 0 END) as dikembalikan,
+                SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END) as ditolak
+            ")
             ->whereYear('created_at', $year)
-            ->groupByRaw('EXTRACT(MONTH FROM created_at)')
+            ->groupByRaw($monthExpr)
             ->get()
             ->keyBy('bulan');
 

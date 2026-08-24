@@ -20,12 +20,12 @@ class TwoFactorEmailCode extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Kode Verifikasi Login - SiDosir')
+            ->subject('Kode Verifikasi Login - SIPDosir')
             ->greeting('Halo, ' . $notifiable->name . '!')
             ->line('Gunakan kode berikut untuk melanjutkan login:')
             ->line('**' . $this->code . '**')
             ->line('Kode ini berlaku selama **10 menit**.')
             ->line('Jika kamu tidak merasa melakukan login, abaikan email ini.')
-            ->salutation('Salam, Tim SiDosir PT Taspen');
+            ->salutation('Salam, Tim SIPDosir PT Taspen');
     }
 }

@@ -30,7 +30,7 @@ class LoginOtpMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Kode OTP Login SiDosir',
+            subject: 'Kode OTP Login SIPDosir',
         );
     }
 

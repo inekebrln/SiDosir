@@ -16,6 +16,13 @@ export default function AppLayout({
 
     useEffect(() => {
         if (props.flash?.success) {
+            // Mainkan suara notifikasi
+            try {
+                const audio = new Audio('/notif.mp3');
+                audio.volume = 1.0;
+                audio.play().catch(() => {});
+            } catch (e) {}
+
             if (props.flash.success === 'Berhasil Login') {
                 // @ts-ignore
                 if (typeof window.Swal !== 'undefined') {
@@ -23,7 +30,7 @@ export default function AppLayout({
                     window.Swal.fire({
                         icon: 'success',
                         title: 'Login Berhasil!',
-                        text: 'Selamat datang kembali di SiDosir.',
+                        text: 'Selamat datang kembali di SIPDosir.',
                     });
                 }
             } else {

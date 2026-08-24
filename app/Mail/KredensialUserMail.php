@@ -20,7 +20,7 @@ class KredensialUserMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Akun SiDosir Anda Telah Dibuat');
+        return new Envelope(subject: 'Akun SIPDosir Anda Telah Dibuat');
     }
 
     public function content(): Content

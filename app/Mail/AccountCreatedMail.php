@@ -32,7 +32,7 @@ class AccountCreatedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Informasi Akun SiDosir Anda',
+            subject: 'Informasi Akun SIPDosir Anda',
         );
     }
 

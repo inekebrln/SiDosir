@@ -51,18 +51,21 @@ interface Props {
     filter: string;
 }
 
-// Helper untuk URL Foto (mendukung ImgBB dan Local Storage)
 const getPhotoUrl = (path: string | null) => {
     if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `/storage/${path}`;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return `/photo-proxy?url=${encodeURIComponent(path)}`;
+    }
+    const clean = path.replace(/^\/+/, '');
+    const relativePath = clean.startsWith('storage/') ? clean.slice(8) : clean;
+    return `/storage/${relativePath}`;
 };
 
 // ─── Dialog Bukti Foto & Detail ──────────────────────────────────────────
 function PhotoDialog({ item, open, onClose }: { item: PeminjamanItem; open: boolean; onClose: () => void }) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[92vw] sm:w-full max-w-md rounded-2xl p-5 sm:p-6">
                 <DialogHeader>
                     <DialogTitle className="text-base">Bukti Face ID & Detail</DialogTitle>
                 </DialogHeader>
@@ -112,7 +115,7 @@ function AccDialog({ item, open, onClose }: { item: PeminjamanItem | null; open:
 
     return (
         <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[92vw] sm:w-full max-w-md rounded-2xl p-5 sm:p-6">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle className="text-base">Persetujuan Peminjaman</DialogTitle>
@@ -179,7 +182,7 @@ function RejectDialog({ item, open, onClose }: { item: PeminjamanItem | null; op
 
     return (
         <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[92vw] sm:w-full max-w-md rounded-2xl p-5 sm:p-6">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle className="text-base text-destructive">Tolak Peminjaman</DialogTitle>
@@ -230,7 +233,7 @@ function ReturnDialog({ item, open, onClose }: { item: PeminjamanItem | null; op
 
     return (
         <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[92vw] sm:w-full max-w-md rounded-2xl p-5 sm:p-6">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle className="text-base">Konfirmasi Pengembalian Dosir</DialogTitle>
@@ -310,16 +313,16 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {statsItems.map(({ label, value, color, bg, icon: Icon }) => (
-                        <Card key={label} className={`border ${bg}`}>
-                            <CardContent className="flex items-center gap-4 py-4">
-                                <div className={`p-2 rounded-full bg-white/50`}>
-                                    <Icon className={`h-6 w-6 ${color}`} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {statsItems.map(({ label, value, color, bg, icon: Icon }, index) => (
+                        <Card key={label} className={`border ${bg} ${index === 2 ? 'col-span-2 sm:col-span-1' : ''}`}>
+                            <CardContent className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
+                                <div className={`p-1.5 sm:p-2 rounded-full bg-white/50 shrink-0`}>
+                                    <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${color}`} />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-                                    <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                                    <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+                                    <p className={`text-lg sm:text-2xl font-bold ${color}`}>{value}</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -339,9 +342,9 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                                     )}
                                 </CardDescription>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-row items-center gap-2 w-full mt-2 sm:mt-0">
                                 <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); applyFilters(undefined, val); }}>
-                                    <SelectTrigger className="w-36 h-8 text-xs">
+                                    <SelectTrigger className="w-28 sm:w-36 h-8 text-xs shrink-0">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -352,17 +355,17 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                                         <SelectItem value="ditolak">Ditolak</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <form onSubmit={handleSearch} className="flex gap-2">
-                                    <div className="relative">
+                                <form onSubmit={handleSearch} className="flex gap-2 w-full sm:w-auto flex-1">
+                                    <div className="relative flex-1">
                                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            className="pl-8 w-56 h-8 text-xs"
+                                            className="pl-8 w-full sm:w-56 h-8 text-xs"
                                             placeholder="Cari nama / no dosir..."
                                             value={q}
                                             onChange={(e) => setQ(e.target.value)}
                                         />
                                     </div>
-                                    <Button type="submit" size="sm" variant="secondary" className="h-8">Cari</Button>
+                                    <Button type="submit" size="sm" variant="secondary" className="h-8 shrink-0">Cari</Button>
                                 </form>
                             </div>
                         </div>
@@ -393,7 +396,7 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                                         </tr>
                                     ) : (
                                         peminjaman.data.map((item) => (
-                                            <tr key={item.id} className="border-b hover:bg-muted/20 transition-colors">
+                                            <tr key={item.id} className="border-b hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => setPhotoItem(item)}>
                                                 {/* Foto */}
                                                 <td className="px-4 py-3">
                                                     <button
@@ -439,7 +442,7 @@ export default function AdminPeminjamanIndex({ peminjaman, statistik, keyword, f
                                                     ) : '—'}
                                                 </td>
                                                 {/* Aksi */}
-                                                <td className="px-4 py-3">
+                                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex items-center justify-end gap-2">
                                                         {item.status === 'menunggu' && (
                                                             <>

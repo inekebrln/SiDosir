@@ -20,7 +20,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         return Inertia::render('admin/users/index', [
-            'users'     => $this->userService->daftar($request->only('q', 'role', 'status')),
+            'users'     => $this->userService->daftar($request->only('q', 'role', 'status'), 5),
             'keyword'   => $request->get('q', ''),
             'filter'    => $request->get('role', ''),
             'statistik' => $this->userService->statistik(),

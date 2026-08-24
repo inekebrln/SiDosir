@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -17,7 +17,10 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { User } from '@/types';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import type { User, PaginatedData } from '@/types';
 
 interface PeminjamanItem {
     id: number;
@@ -46,25 +49,112 @@ interface Statistik {
 
 interface Props {
     statistik: Statistik;
-    peminjamanTerbaru?: PeminjamanItem[];
+    peminjamanTerbaru?: PaginatedData<PeminjamanItem>;
     isAdmin?: boolean;
 }
 
-// Helper untuk URL Foto (mendukung ImgBB dan Local Storage)
 const getPhotoUrl = (path: string | null) => {
     if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `/storage/${path}`;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return `/photo-proxy?url=${encodeURIComponent(path)}`;
+    }
+    const clean = path.replace(/^\/+/, '');
+    const relativePath = clean.startsWith('storage/') ? clean.slice(8) : clean;
+    return `/storage/${relativePath}`;
 };
 
-export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin = false }: Props) {
+function PhotoDialog({ item, open, onClose, isAdmin }: { item: PeminjamanItem | null; open: boolean; onClose: () => void; isAdmin?: boolean }) {
+    if (!item) return null;
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="w-[92vw] sm:w-full max-w-md rounded-2xl p-5 sm:p-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                <DialogHeader>
+                    <DialogTitle className="text-base">Detail Peminjaman</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                    {item.foto_bukti ? (
+                        <img src={getPhotoUrl(item.foto_bukti)} alt="Selfie" className="w-full max-h-64 object-contain rounded-lg bg-neutral-100 dark:bg-neutral-800" />
+                    ) : (
+                        <div className="flex items-center justify-center py-12 bg-muted rounded-lg">
+                            <Image className="h-12 w-12 text-muted-foreground/30" />
+                        </div>
+                    )}
+                    <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-sm">
+                        <p><span className="text-muted-foreground">Peminjam:</span> <strong>{item.nama_peminjam}</strong> ({item.notas_nik})</p>
+                        {isAdmin && item.user && <p><span className="text-muted-foreground">Petugas CS:</span> <strong>{item.user.name}</strong></p>}
+                        <p><span className="text-muted-foreground">Dosir:</span> {item.no_dosir} — {item.nama_dosir}</p>
+                        <p>
+                            <span className="text-muted-foreground">Status:</span>{' '}
+                            <span className={`font-bold uppercase ${
+                                item.status === 'dikembalikan' ? 'text-emerald-600' :
+                                item.status === 'dipinjam' ? 'text-amber-600' :
+                                item.status === 'ditolak' ? 'text-rose-600' : 'text-blue-600'
+                            }`}>
+                                {item.status}
+                            </span>
+                        </p>
+                        {item.tgl_pinjam && <p><span className="text-muted-foreground">Tgl. Pinjam:</span> {new Date(item.tgl_pinjam).toLocaleDateString('id-ID')}</p>}
+                        {item.tgl_kembali && <p><span className="text-muted-foreground">Tgl. Kembali:</span> {new Date(item.tgl_kembali).toLocaleDateString('id-ID')}</p>}
+                        {item.lokasi_rak && <p><span className="text-muted-foreground">Lokasi Rak:</span> {item.lokasi_rak}</p>}
+                        {item.catatan_admin && <p><span className="text-muted-foreground">Catatan Admin:</span> {item.catatan_admin}</p>}
+                        <Separator className="my-2" />
+                        {item.catatan && <p><span className="text-muted-foreground">Catatan CS:</span> {item.catatan}</p>}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function Dashboard({ statistik, peminjamanTerbaru, isAdmin = false }: Props) {
     const { auth } = usePage<{ auth: { user: User } }>().props;
     const user = auth.user;
 
     const lastChecked = useRef<string>(new Date().toISOString());
     const [notifications, setNotifications] = useState<any[]>([]);
 
+    const [selectedItem, setSelectedItem] = useState<PeminjamanItem | null>(null);
+    const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+
+    const initialSoundPlayed = useRef(false);
+
+    // Function helper untuk memutar suara notifikasi ganda (double-play) SATU KALI per batch notifikasi
+    const playNotificationSound = () => {
+        try {
+            const playAudio = () => {
+                const audio1 = new Audio('/notif.mp3');
+                audio1.volume = 1.0;
+
+                // Tepat setelah bunyi pertama selesai diputar, bunyi kedua langsung menyusul (bebas bertabrakan)
+                audio1.addEventListener('ended', () => {
+                    const audio2 = new Audio('/notif.mp3');
+                    audio2.volume = 1.0;
+                    audio2.play().catch(() => {});
+                });
+
+                return audio1.play();
+            };
+
+            playAudio().catch(() => {
+                // Autoplay diblokir browser, putar saat pertama kali layar diklik/sentuh
+                const handleFirstInteraction = () => {
+                    playAudio().catch(() => {});
+                    window.removeEventListener('click', handleFirstInteraction);
+                    window.removeEventListener('touchstart', handleFirstInteraction);
+                };
+                window.addEventListener('click', handleFirstInteraction, { once: true });
+                window.addEventListener('touchstart', handleFirstInteraction, { once: true });
+            });
+        } catch (e) {}
+    };
+
     useEffect(() => {
+        // Mainkan suara HANYA 1 KALI saat pertama kali dashboard dibuka jika ada status 'menunggu'
+        if (statistik?.menunggu > 0 && !initialSoundPlayed.current) {
+            initialSoundPlayed.current = true;
+            playNotificationSound();
+        }
+
         // Fetch initial notifications from the last 24 hours on mount
         const sinceTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         fetch(`/peminjaman/poll?since=${encodeURIComponent(sinceTime)}`, {
@@ -103,13 +193,18 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                             const newItems = items.filter(
                                 item => !prev.some(p => p.id === item.id && p.notification_type === item.notification_type)
                             );
-                            return [...newItems, ...prev];
-                        });
 
-                        items.forEach((item: any) => {
-                            if (item.notification_type === 'status_changed') {
-                                const isApproved = item.status === 'dipinjam';
-                                const isRejected = item.status === 'ditolak';
+                            if (newItems.length > 0) {
+                                // Memperbarui data tabel dan statistik secara otomatis
+                                router.reload({ only: ['statistik', 'peminjamanTerbaru'] });
+
+                                // Mainkan suara notifikasi cepat saat ada update baru
+                                playNotificationSound();
+
+                                newItems.forEach((item: any) => {
+                                    if (item.notification_type === 'status_changed') {
+                                        const isApproved = item.status === 'dipinjam';
+                                        const isRejected = item.status === 'ditolak';
 
                                 if (isApproved) {
                                     toast.success(`Pengajuan Peminjaman Disetujui!`, {
@@ -140,6 +235,10 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                                     duration: 8000,
                                 });
                             }
+                        });
+                            }
+
+                            return [...newItems, ...prev];
                         });
                     }
                     if (timestamp) {
@@ -184,7 +283,7 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
 
     return (
         <>
-            <Head title="Dashboard SiDosir" />
+            <Head title="Dashboard SIPDosir" />
             <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
 
                 {/* Taspen Welcome Hero Section */}
@@ -193,7 +292,7 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                     <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-white/5 blur-3xl pointer-events-none" />
                     <div className="absolute right-10 bottom-0 -mr-10 -mb-10 h-48 w-48 rounded-full bg-taspen-gold/10 blur-2xl pointer-events-none" />
                     
-                    <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
                         <div className="space-y-2 max-w-2xl">
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-taspen-gold border border-white/5">
                                 <Building className="h-3.5 w-3.5" />
@@ -203,34 +302,35 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                                 {getGreeting()}, {user.name}!
                             </h1>
                             <p className="text-sm sm:text-base text-blue-100/90 leading-relaxed">
-                                Selamat datang di <strong className="text-white">SiDosir</strong> (Sistem Informasi Dosir). Kelola pencatatan dan monitoring dokumen dosir nasabah secara aman, akurat, dan terintegrasi.
+                                Selamat datang di <strong className="text-white">SIPDosir</strong> (Sistem Informasi Peminjaman Dosir). Kelola pencatatan dan monitoring dokumen dosir nasabah secara aman, akurat, dan terintegrasi.
                             </p>
                         </div>
                         
-                        <div className="flex flex-wrap items-center gap-3 shrink-0">
+                        <div className="flex flex-wrap items-center gap-3 shrink-0 w-full md:w-auto">
                             <div className="flex flex-col items-center bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/5 min-w-[100px] text-center">
                                 <span className="text-[10px] uppercase font-bold text-blue-200 tracking-wider">Total Dosir</span>
                                 <span className="text-xl sm:text-2xl font-black text-taspen-gold">{statistik.total || 0}</span>
                             </div>
                             
-                            {isAdmin ? (
-                                <Link href="/admin/peminjaman" className="w-full sm:w-auto">
-                                    <Button className="w-full bg-taspen-gold hover:bg-taspen-gold/90 text-[#003087] font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-transform duration-200 gap-1.5 px-5 py-5 rounded-xl">
-                                        <BarChart3 className="h-4 w-4" />
-                                        Mulai Monitoring
-                                    </Button>
-                                </Link>
-                            ) : (
-                                <Link href="/peminjaman" className="w-full sm:w-auto">
-                                    <Button className="w-full bg-taspen-gold hover:bg-taspen-gold/90 text-[#003087] font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-transform duration-200 gap-1.5 px-5 py-5 rounded-xl">
-                                        <Camera className="h-4 w-4" />
-                                        Catat Peminjaman
-                                    </Button>
-                                </Link>
-                            )}
+                            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                                {isAdmin ? (
+                                    <Link href="/admin/peminjaman" className="flex-1">
+                                        <Button className="w-full bg-taspen-gold hover:bg-taspen-gold/90 text-[#003087] font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-transform duration-200 gap-1.5 px-5 py-5 rounded-xl">
+                                            <BarChart3 className="h-4 w-4" />
+                                            Mulai Monitoring
+                                        </Button>
+                                    </Link>
+                                ) : (
+                                    <Link href="/peminjaman" className="flex-1">
+                                        <Button className="w-full bg-taspen-gold hover:bg-taspen-gold/90 text-[#003087] font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-transform duration-200 gap-1.5 px-5 py-5 rounded-xl">
+                                            <Camera className="h-4 w-4" />
+                                            Catat Peminjaman
+                                        </Button>
+                                    </Link>
+                                )}
 
-                            {/* Notification Bell inside Welcome Hero Section */}
-                            <DropdownMenu>
+                                {/* Notification Bell inside Welcome Hero Section */}
+                                <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" size="icon" className="relative rounded-xl h-11 w-11 bg-white hover:bg-white/90 border border-blue-100 text-[#003087] hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer shadow-md shrink-0">
                                         <Bell className="h-5 w-5 fill-[#003087]/10" />
@@ -304,67 +404,68 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                                     </div>
                                 </DropdownMenuContent>
                             </DropdownMenu>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Grid Statistik Cards */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                     {/* Card Menunggu */}
                     <Card className="overflow-hidden border-l-4 border-l-blue-500 shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-200">
-                        <CardContent className="flex items-center justify-between p-5">
-                            <div className="space-y-1">
-                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Menunggu ACC</p>
-                                <p className="text-3xl font-black text-blue-600">{statistik.menunggu || 0}</p>
+                        <CardContent className="flex items-center justify-between p-3 sm:p-5">
+                            <div className="space-y-0.5 sm:space-y-1">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Menunggu</p>
+                                <p className="text-xl sm:text-3xl font-black text-blue-600">{statistik.menunggu || 0}</p>
                             </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50">
-                                <Clock className="h-6 w-6" />
+                            <div className="flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50">
+                                <Clock className="h-4 w-4 sm:h-6 sm:w-6" />
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* Card Dipinjam */}
                     <Card className="overflow-hidden border-l-4 border-l-amber-500 shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-200">
-                        <CardContent className="flex items-center justify-between p-5">
-                            <div className="space-y-1">
-                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sedang Dipinjam</p>
-                                <p className="text-3xl font-black text-amber-600">{statistik.dipinjam || 0}</p>
+                        <CardContent className="flex items-center justify-between p-3 sm:p-5">
+                            <div className="space-y-0.5 sm:space-y-1">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Dipinjam</p>
+                                <p className="text-xl sm:text-3xl font-black text-amber-600">{statistik.dipinjam || 0}</p>
                             </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50">
-                                <FileText className="h-6 w-6" />
+                            <div className="flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50">
+                                <FileText className="h-4 w-4 sm:h-6 sm:w-6" />
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* Card Dikembalikan */}
                     <Card className="overflow-hidden border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-200">
-                        <CardContent className="flex items-center justify-between p-5">
-                            <div className="space-y-1">
-                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dikembalikan</p>
-                                <p className="text-3xl font-black text-emerald-600">{statistik.dikembalikan || 0}</p>
+                        <CardContent className="flex items-center justify-between p-3 sm:p-5">
+                            <div className="space-y-0.5 sm:space-y-1">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Kembali</p>
+                                <p className="text-xl sm:text-3xl font-black text-emerald-600">{statistik.dikembalikan || 0}</p>
                             </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50">
-                                <CheckCircle2 className="h-6 w-6" />
+                            <div className="flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50">
+                                <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6" />
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* Card Ditolak */}
                     <Card className="overflow-hidden border-l-4 border-l-rose-500 shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-200">
-                        <CardContent className="flex items-center justify-between p-5">
-                            <div className="space-y-1">
-                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ditolak / Batal</p>
-                                <p className="text-3xl font-black text-rose-600">{statistik.ditolak || 0}</p>
+                        <CardContent className="flex items-center justify-between p-3 sm:p-5">
+                            <div className="space-y-0.5 sm:space-y-1">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Ditolak</p>
+                                <p className="text-xl sm:text-3xl font-black text-rose-600">{statistik.ditolak || 0}</p>
                             </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/50">
-                                <ShieldAlert className="h-6 w-6" />
+                            <div className="flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/50">
+                                <ShieldAlert className="h-4 w-4 sm:h-6 sm:w-6" />
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
                 {/* Split Section Layout */}
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-6">
                     
                     {/* Left Column: Peminjaman Terbaru (Col-span-2) */}
                     <div className="lg:col-span-2 space-y-6">
@@ -386,8 +487,8 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                                 </Link>
                             </CardHeader>
                             <Separator />
-                            <CardContent className="pt-4">
-                                {peminjamanTerbaru.length === 0 ? (
+                            <CardContent className="pt-4 pb-4">
+                                {!peminjamanTerbaru || peminjamanTerbaru.data.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
                                         <div className="rounded-full bg-neutral-50 dark:bg-neutral-900 p-4">
                                             <ClipboardList className="h-10 w-10 text-muted-foreground/45" />
@@ -403,11 +504,13 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        {peminjamanTerbaru.map((item) => (
+                                    <>
+                                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                                            {peminjamanTerbaru.data.map((item) => (
                                             <div 
                                                 key={item.id} 
-                                                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-neutral-100 dark:border-neutral-800 p-4 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/50 hover:border-[#003087]/20 transition-all duration-200"
+                                                onClick={() => { setSelectedItem(item); setIsPhotoDialogOpen(true); }}
+                                                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-neutral-100 dark:border-neutral-800 p-4 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/50 hover:border-[#003087]/20 transition-all duration-200 cursor-pointer"
                                             >
                                                 {/* Left Section: Image and Info */}
                                                 <div className="flex items-center gap-3.5 min-w-0">
@@ -472,7 +575,18 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
                                                 </div>
                                             </div>
                                         ))}
-                                    </div>
+                                        </div>
+
+                                        {peminjamanTerbaru.last_page > 1 && (
+                                            <div className="flex justify-center gap-1 pt-4">
+                                                {peminjamanTerbaru.links.map((link, i) => (
+                                                    <Button key={i} size="sm" variant={link.active ? 'default' : 'outline'}
+                                                        disabled={!link.url} onClick={() => link.url && router.get(link.url)}
+                                                        dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </CardContent>
                         </Card>
@@ -585,6 +699,13 @@ export default function Dashboard({ statistik, peminjamanTerbaru = [], isAdmin =
 
                 </div>
             </div>
+            
+            <PhotoDialog 
+                item={selectedItem} 
+                open={isPhotoDialogOpen} 
+                onClose={() => setIsPhotoDialogOpen(false)} 
+                isAdmin={isAdmin}
+            />
         </>
     );
 }

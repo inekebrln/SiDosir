@@ -17,8 +17,8 @@ export default function Welcome() {
                         <div className="flex items-center gap-3">
 
                             <img
-                                src="/logo-taspen no bg.png"
-                                alt="Taspen"
+                                src="/LOGO DOSIR.png"
+                                alt="SIPDosir Logo"
                                 className="h-14"
                             />
 
@@ -62,7 +62,7 @@ export default function Welcome() {
         <div className="w-1/2">
 
             <h1 className="font-poppins text-5xl font-semibold text-black">
-                SiDosir
+                SIPDosir
             </h1>
 
             <p className="mt-5 text-lg text-gray-500 leading-relaxed">
