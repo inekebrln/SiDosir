@@ -54,12 +54,12 @@ class PeminjamanController extends Controller
             'catatan' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Simpan foto ke ImgBB Cloud (dengan fallback local storage)
+        // Simpan foto bukti ke local storage
         $fotoPath = null;
         if ($request->foto_bukti) {
             $imageData = $request->foto_bukti;
 
-            if (str_starts_with($imageData, 'http')) {
+            if (str_starts_with($imageData, 'http://') || str_starts_with($imageData, 'https://')) {
                 $fotoPath = $imageData;
             } else {
                 $base64Data = $imageData;
@@ -67,24 +67,12 @@ class PeminjamanController extends Controller
                     $base64Data = substr($imageData, strpos($imageData, ',') + 1);
                 }
 
-                // Try uploading to ImgBB Cloud
-                $response = Http::asForm()->withOptions(['verify' => false])->post('https://api.imgbb.com/1/upload', [
-                    'key' => '256db2b8b8289760fe08915cfbe2541d',
-                    'image' => $base64Data,
-                ]);
-
-                if ($response->successful() && $response->json('data.url')) {
-                    $rawUrl = $response->json('data.url');
-                    $fotoPath = str_replace('i.ibb.co', 'i.ibb.co.com', $rawUrl);
-                } else {
-                    // Fallback ke local storage jika ImgBB offline/gagal
-                    $extension = 'jpg';
-                    $decodedData = base64_decode($base64Data, true);
-                    if ($decodedData !== false) {
-                        $fileName = 'foto_bukti/' . time() . '_' . uniqid() . '.' . $extension;
-                        Storage::disk('public')->put($fileName, $decodedData);
-                        $fotoPath = $fileName;
-                    }
+                $extension = 'jpg';
+                $decodedData = base64_decode($base64Data, true);
+                if ($decodedData !== false) {
+                    $fileName = 'foto_bukti/' . time() . '_' . uniqid() . '.' . $extension;
+                    Storage::disk('public')->put($fileName, $decodedData);
+                    $fotoPath = $fileName;
                 }
             }
         }
@@ -187,28 +175,18 @@ class PeminjamanController extends Controller
                 Storage::disk('public')->delete($peminjaman->foto_bukti);
             }
 
+            $imageData = $request->foto_bukti;
             $base64Data = $imageData;
             if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches)) {
                 $base64Data = substr($imageData, strpos($imageData, ',') + 1);
             }
 
-            // Try uploading to ImgBB Cloud
-            $response = Http::asForm()->withOptions(['verify' => false])->post('https://api.imgbb.com/1/upload', [
-                'key' => '256db2b8b8289760fe08915cfbe2541d',
-                'image' => $base64Data,
-            ]);
-
-            if ($response->successful() && $response->json('data.url')) {
-                $rawUrl = $response->json('data.url');
-                $fotoPath = str_replace('i.ibb.co', 'i.ibb.co.com', $rawUrl);
-            } else {
-                $extension = 'jpg';
-                $decodedData = base64_decode($base64Data, true);
-                if ($decodedData !== false) {
-                    $fileName = 'foto_bukti/' . time() . '_' . uniqid() . '.' . $extension;
-                    Storage::disk('public')->put($fileName, $decodedData);
-                    $fotoPath = $fileName;
-                }
+            $extension = 'jpg';
+            $decodedData = base64_decode($base64Data, true);
+            if ($decodedData !== false) {
+                $fileName = 'foto_bukti/' . time() . '_' . uniqid() . '.' . $extension;
+                Storage::disk('public')->put($fileName, $decodedData);
+                $fotoPath = $fileName;
             }
         }
 

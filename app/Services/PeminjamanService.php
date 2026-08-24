@@ -123,16 +123,21 @@ class PeminjamanService
      */
     public function statistikPerBulan(int $year): array
     {
-        $rawStats = Peminjaman::selectRaw('
-                EXTRACT(MONTH FROM created_at)::integer as bulan,
+        $driverName = Peminjaman::query()->getConnection()->getDriverName();
+        $monthExpr = $driverName === 'pgsql'
+            ? 'EXTRACT(MONTH FROM created_at)::integer'
+            : 'MONTH(created_at)';
+
+        $rawStats = Peminjaman::selectRaw("
+                {$monthExpr} as bulan,
                 COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status = \'menunggu\') as menunggu,
-                COUNT(*) FILTER (WHERE status = \'dipinjam\') as dipinjam,
-                COUNT(*) FILTER (WHERE status = \'dikembalikan\') as dikembalikan,
-                COUNT(*) FILTER (WHERE status = \'ditolak\') as ditolak
-            ')
+                SUM(CASE WHEN status = 'menunggu' THEN 1 ELSE 0 END) as menunggu,
+                SUM(CASE WHEN status = 'dipinjam' THEN 1 ELSE 0 END) as dipinjam,
+                SUM(CASE WHEN status = 'dikembalikan' THEN 1 ELSE 0 END) as dikembalikan,
+                SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END) as ditolak
+            ")
             ->whereYear('created_at', $year)
-            ->groupByRaw('EXTRACT(MONTH FROM created_at)')
+            ->groupByRaw($monthExpr)
             ->get()
             ->keyBy('bulan');
 

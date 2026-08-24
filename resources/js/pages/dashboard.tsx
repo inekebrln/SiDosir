@@ -55,16 +55,12 @@ interface Props {
 
 const getPhotoUrl = (path: string | null) => {
     if (!path) return '';
-    let url = path;
-    if (url.startsWith('http://')) {
-        url = url.replace('http://', 'https://');
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return `/photo-proxy?url=${encodeURIComponent(path)}`;
     }
-    if (url.startsWith('https://')) {
-        return url.replace('i.ibb.co', 'i.ibb.co.com');
-    }
-    const clean = url.replace(/^\/+/, '');
+    const clean = path.replace(/^\/+/, '');
     const relativePath = clean.startsWith('storage/') ? clean.slice(8) : clean;
-    return `/storage/${relativePath}?v=1`;
+    return `/storage/${relativePath}`;
 };
 
 function PhotoDialog({ item, open, onClose, isAdmin }: { item: PeminjamanItem | null; open: boolean; onClose: () => void; isAdmin?: boolean }) {
